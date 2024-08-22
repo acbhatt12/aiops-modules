@@ -9,6 +9,7 @@ role_arn = os.environ.get("role_arn")
 kms_key_id = os.environ.get("kms_key_id")
 base_model_id = os.environ.get("base_model_id")
 vpc_subnets = json.loads(os.environ.get("vpc_subnets"))
+# vpc_subnets = os.environ.get("vpc_subnets")
 vpc_sec_group = os.environ.get("vpc_sec_group")
 
 
@@ -31,6 +32,19 @@ def lambda_handler(event, context):
     )
     training_input = "s3://" + event["detail"]["bucket"]["name"] + "/" + file_key
 
+
+    print("event details print :", event)
+
+
+
+    print("job name :", job_name)
+    print("output location :", output_loc)
+    print("training input :", training_input)
+    print("model name :", model_name)
+    print("subnets: ", vpc_subnets)
+    print("security group: ", vpc_sec_group)
+    print("base model id: ", base_model_id)
+
     bedrock.create_model_customization_job(
         customizationType="FINE_TUNING",
         customModelKmsKeyId=kms_key_id,
@@ -45,10 +59,10 @@ def lambda_handler(event, context):
         },
         trainingDataConfig={"s3Uri": training_input},
         outputDataConfig={"s3Uri": output_loc},
-        vpcConfig={
-            "securityGroupIds": [vpc_sec_group],
-            "subnets": vpc_subnets,
-        },
+        # vpcConfig={
+        #     "securityGroupIds": [vpc_sec_group],
+        #     "subnetIds": vpc_subnets,
+        # },
     )
 
     return {

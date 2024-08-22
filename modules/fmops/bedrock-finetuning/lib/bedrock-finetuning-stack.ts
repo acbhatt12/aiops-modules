@@ -165,9 +165,9 @@ export class AmazonBedrockFinetuningStack extends cdk.Stack {
         outputPath: "$.Payload",
       },
     );
-    const definition = modelFinetuningLambdaTask.next(
-      new sfn.Succeed(this, "Succeed"),
-    );
+    // const definition = modelFinetuningLambdaTask.next(
+    //   new sfn.Succeed(this, "Succeed"),
+    // );
     const stateMachine = new sfn.StateMachine(this, "MyStateMachine", {
       definitionBody: sfn.DefinitionBody.fromChainable(definition),
       timeout: cdk.Duration.minutes(5),
@@ -182,6 +182,44 @@ export class AmazonBedrockFinetuningStack extends cdk.Stack {
         level: sfn.LogLevel.ALL,
       },
     });
+    
+    // Create a new state machine to set provisioned throughput for fine-tuned model
+    const setProvisionedThroughputLambda = new lambda.Function(this, "SetProvisionedThroughput", {
+      runtime: lambda.Runtime.PYTHON_3_12,
+      code: lambda.Code.fromAsset("src/lambda-functions"),
+      handler: "setProvisionedThroughputLambda.handler",
+      timeout: cdk.Duration.seconds(60),
+      memorySize: 512,
+      vpc: vpc,
+    });
+
+    setProvisionedThroughputLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["bedrock:UpdateProvisionedModelThroughput"],
+        resources: ["*"],
+        conditions: {
+          StringEquals: {
+            "aws:PrincipalAccount": this.account,
+          },
+        },
+      }),
+    );
+    
+    const setProvisionedThroughputTask = new tasks.LambdaInvoke(this, "SetProvisionedThroughputTask", {
+      lambdaFunction: setProvisionedThroughputLambda,
+      outputPath: "$.Payload",
+    });
+    
+    const provisionedThroughputStateMachine = new sfn.StateMachine(this, "ProvisionedThroughputStateMachine", {
+      definition: setProvisionedThroughputTask,
+    });
+
+    const definition = setProvisionedThroughputTask.next(
+      new sfn.Succeed(this, "Succeed"),
+    );
+    
+    // Trigger provisioned throughput state machine after fine-tuning job completes
+      
 
     // Grant the state machine permission to invoke the Lambda function
     modelFinetuningLambda.grantInvoke(stateMachine.role);

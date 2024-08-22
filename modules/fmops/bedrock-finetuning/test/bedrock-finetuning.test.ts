@@ -45,4 +45,35 @@ describe("Bedrock Finetuning Stack", () => {
     );
     expect(errors).toHaveLength(0);
   });
+
+  test("Set provisioned throughput lambda", async () => {
+    const mockModel = "test-model";
+    const mockEvent = {
+      model_id: mockModel,
+      model_name: "test",
+      model_units: 2
+    };
+    
+    const lambda = await import("../src/lambda-functions/setProvisionedThroughputLambda");
+    const response = await lambda.handler(mockEvent, null);
+    
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain(mockModel);
+  });
+
+  test("Set provisioned throughput lambda invalid input", async () => {
+    const mockEvent = {
+      model_name: "test",
+      model_units: 2  
+    };
+
+    const lambda = await import("../src/lambda-functions/setProvisionedThroughputLambda");
+    const response = await lambda.handler(mockEvent, null);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toContain("model_id is required");
+  });
+
+    // Add a rule to trigger provisioned throughput state machine
+    // after fine-tuning job completes
 });
